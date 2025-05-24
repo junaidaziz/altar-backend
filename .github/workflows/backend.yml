@@ -1,12 +1,12 @@
-name: Altar.io Frontend CI (Angular)
+name: Altar.io Backend CI (Node.js + TypeScript)
 
 on:
   push:
     paths:
-      - 'frontend/**'
+      - 'backend/**'
   pull_request:
     paths:
-      - 'frontend/**'
+      - 'backend/**'
 
 jobs:
   build:
@@ -22,15 +22,15 @@ jobs:
           node-version: 18
 
       - name: 📦 Install dependencies
-        working-directory: frontend
+        working-directory: backend
         run: npm install
 
-      - name: 🛠️ Build Angular app
-        working-directory: frontend
-        run: npm run build
+      - name: 🛠️ Compile backend
+        working-directory: backend
+        run: npx tsc
 
-      - name: 📤 Upload frontend build
+      - name: 📤 Upload backend build
         uses: actions/upload-artifact@v3
         with:
-          name: angular-dist
-          path: frontend/dist/
+          name: backend-dist
+          path: backend/dist/
