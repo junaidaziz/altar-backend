@@ -3,6 +3,7 @@ import { WebSocketServer, WebSocket } from "ws";
 import http from "http";
 import gridRouter, { generateGrid } from "./grid";
 import codeRouter, { computeCode } from "./code";
+import paymentsRouter from "./payments";
 import cors from "cors";
 
 const app = express();
@@ -63,6 +64,7 @@ app.get("/", (req, res) => {
 
 app.use("/api/grid", gridRouter);
 app.use("/api/code", codeRouter);
+app.use("/api/payments", paymentsRouter);
 
 server.listen(port, () => {
   console.log(`Server is running on http://localhost:${port}`);
