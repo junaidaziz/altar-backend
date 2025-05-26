@@ -1,0 +1,43 @@
+# .github/workflows/backend-cd.yaml
+
+name: Backend CD (Node.js + TypeScript)
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch: {}
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@v3
+
+      - name: ⬇️ Download backend build artifact
+        uses: actions/download-artifact@v3
+        with:
+          name: backend-dist
+          path: backend/dist/
+
+      # New step: Log in to Docker Hub or your container registry
+      - name: 🔑 Login to Docker Hub
+        uses: docker/login-action@v3 # Use the Docker login action
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }} # Your Docker Hub username secret
+          password: ${{ secrets.DOCKER_PASSWORD }} # Your Docker Hub token/password secret
+
+      # Build and Push Docker Image
+      - name: 🐳 Build and Push Docker Image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./backend
+          push: true
+          tags: your-docker-registry/your-repo/backend:${{ github.sha }}
+          # Removed username and password from here as login is handled by the previous step
+
+      - name: ✅ Deployment complete
+        run: echo "Backend deployment workflow finished successfully!"
+
