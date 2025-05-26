@@ -1,5 +1,3 @@
-// backend/apis/index.ts
-
 import express from "express";
 import http from "http";
 import gridRouter from "./grid";
