@@ -2,6 +2,7 @@ import express from "express";
 import http from "http";
 import gridRouter from "./grid";
 import codeRouter from "./code";
+import paymentsRouter from "./payments";
 import cors from "cors";
 
 const app = express();
@@ -18,6 +19,7 @@ app.get("/", (req, res) => {
 
 app.use("/api/grid", gridRouter);
 app.use("/api/code", codeRouter);
+app.use("/api/payments", paymentsRouter);
 
 server.listen(port, () => {
   console.log(`Server is running on http://localhost:${port}`);
