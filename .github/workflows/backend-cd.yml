@@ -20,7 +20,7 @@ jobs:
         uses: actions/download-artifact@v3
         with:
           name: backend-dist
-          path: backend/dist/
+          path: dist/
 
       # New step: Log in to Docker Hub or your container registry
       - name: 🔑 Login to Docker Hub
@@ -33,7 +33,7 @@ jobs:
       - name: 🐳 Build and Push Docker Image
         uses: docker/build-push-action@v5
         with:
-          context: ./backend
+          context: ./
           push: true
           tags: your-docker-registry/your-repo/backend:${{ github.sha }}
           # Removed username and password from here as login is handled by the previous step
