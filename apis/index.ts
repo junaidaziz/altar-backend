@@ -75,13 +75,4 @@ app.use("/api/grid", gridRouter);
 app.use("/api/code", codeRouter);
 
 app.use("/api/payments", paymentsRouter(broadcastPayment));
-
-server.listen(port, () => {
-  console.log(`Server is running on http://localhost:${port}`);
-  console.log(`Grid API available at http://localhost:${port}/api/grid`);
-  console.log(`Code API available at http://localhost:${port}/api/code`);
-  console.log(
-    `Payments API available at http://localhost:${port}/api/payments`
-  );
-  console.log("WebSocket server is running.");
-});
+export default app;
