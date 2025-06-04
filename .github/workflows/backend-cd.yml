@@ -3,13 +3,16 @@
 name: Backend CD (Node.js + TypeScript)
 
 on:
-  push:
-    branches:
-      - main
+  workflow_run:
+    workflows: ["Backend CI (Node.js + TypeScript)"]
+    branches: [main]
+    types:
+      - completed
   workflow_dispatch: {}
 
 jobs:
   deploy:
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
     runs-on: ubuntu-latest
 
     steps:
@@ -21,6 +24,8 @@ jobs:
         with:
           name: backend-dist
           path: dist/
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          run-id: ${{ github.event.workflow_run.id }}
 
       # New step: Log in to Docker Hub or your container registry
       - name: 🔑 Login to Docker Hub
