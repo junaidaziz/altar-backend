@@ -1,5 +1,3 @@
-// backend/apis/payments.ts
-
 import { Router, Request, Response } from "express";
 
 // Define an interface for a Payment object

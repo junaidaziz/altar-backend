@@ -1,5 +1,3 @@
-// backend/apis/code.ts
-
 import express, { Request, Response } from "express";
 
 const codeRouter = express.Router();

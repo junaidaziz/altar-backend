@@ -1,5 +1,4 @@
-// backend/apis/index.ts
-
+import "dotenv/config";
 import express from "express";
 import http from "http"; // Keep http for server creation, but not for WSS
 import cors from "cors";
