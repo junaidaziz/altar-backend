@@ -9,6 +9,7 @@ import codeRouter from "./code";
 import paymentsRouter from "./payments";
 import { generateGrid } from "./grid";
 import { computeCode } from "./code";
+import { pushPayment, pushGridUpdate } from "./firebase";
 
 const app = express();
 
@@ -22,6 +23,9 @@ let currentCode: string = "00";
 // Initialize grid and code on startup
 currentGrid = generateGrid();
 currentCode = computeCode(currentGrid, new Date());
+pushGridUpdate(currentGrid, currentCode).catch(err =>
+  console.error("Firebase initial grid failed", err)
+);
 
 // Note: WebSockets are not directly supported in Vercel's serverless environment.
 // For real-time updates on Vercel, consider alternatives like Server-Sent Events (SSE)
@@ -29,11 +33,9 @@ currentCode = computeCode(currentGrid, new Date());
 // The broadcastPayment function is kept for conceptual completeness but won't
 // actively broadcast over WebSockets in a Vercel serverless deployment.
 function broadcastPayment(payment: any) {
-  console.log(
-    "Payment broadcast attempted (WebSockets not active in Vercel serverless):",
-    payment
+  pushPayment(payment).catch(err =>
+    console.error("Firebase payment broadcast failed", err)
   );
-  // In a real serverless setup, you'd integrate with a real-time service here.
 }
 
 // The setInterval for grid/code updates is also removed as serverless functions
