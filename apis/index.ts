@@ -8,7 +8,7 @@ import codeRouter from "./code";
 import paymentsRouter from "./payments";
 import { generateGrid } from "./grid";
 import { computeCode } from "./code";
-import { pushPayment, pushGridUpdate, fetchCurrentGrid } from "./firebase";
+import { pushGridUpdate, fetchCurrentGrid } from "./firebase";
 
 const app = express();
 
@@ -18,6 +18,9 @@ app.use(express.json());
 // In-memory state (will reset with each serverless function invocation)
 let currentGrid: string[][] = [];
 let currentCode: string = "00";
+
+// SSE clients for real-time payment updates
+const paymentClients: express.Response[] = [];
 
 // Initialize grid and code on startup using Firebase persistence if available
 (async () => {
@@ -39,15 +42,28 @@ let currentCode: string = "00";
   }
 })();
 
-// Note: WebSockets are not directly supported in Vercel's serverless environment.
-// For real-time updates on Vercel, consider alternatives like Server-Sent Events (SSE)
-// or a dedicated real-time service (e.g., Pusher, Ably).
-// The broadcastPayment function is kept for conceptual completeness but won't
-// actively broadcast over WebSockets in a Vercel serverless deployment.
+// Server-Sent Events endpoint for real-time payment updates
+app.get("/api/payments/stream", (req, res) => {
+  res.set({
+    "Content-Type": "text/event-stream",
+    "Cache-Control": "no-cache",
+    Connection: "keep-alive"
+  });
+  res.flushHeaders();
+
+  paymentClients.push(res);
+
+  req.on("close", () => {
+    const idx = paymentClients.indexOf(res);
+    if (idx !== -1) {
+      paymentClients.splice(idx, 1);
+    }
+  });
+});
+
 function broadcastPayment(payment: any) {
-  pushPayment(payment).catch(err =>
-    console.error("Firebase payment broadcast failed", err)
-  );
+  const data = `data: ${JSON.stringify(payment)}\n\n`;
+  paymentClients.forEach(client => client.write(data));
 }
 
 // The setInterval for grid/code updates is also removed as serverless functions
