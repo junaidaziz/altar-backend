@@ -1,8 +1,7 @@
 // backend/apis/index.ts
 
 import express from "express";
-import { WebSocketServer, WebSocket } from "ws";
-import http from "http";
+import http from "http"; // Keep http for server creation, but not for WSS
 import cors from "cors";
 
 import gridRouter from "./grid";
@@ -12,60 +11,34 @@ import { generateGrid } from "./grid";
 import { computeCode } from "./code";
 
 const app = express();
-const port = process.env.PORT || 3000;
-
-const server = http.createServer(app);
-const wss = new WebSocketServer({ server });
 
 app.use(cors());
 app.use(express.json());
 
+// In-memory state (will reset with each serverless function invocation)
 let currentGrid: string[][] = [];
 let currentCode: string = "00";
 
-function broadcast(data: any) {
-  wss.clients.forEach(client => {
-    if (client.readyState === WebSocket.OPEN) {
-      client.send(JSON.stringify(data));
-    }
-  });
-}
+// Initialize grid and code on startup
+currentGrid = generateGrid();
+currentCode = computeCode(currentGrid, new Date());
 
+// Note: WebSockets are not directly supported in Vercel's serverless environment.
+// For real-time updates on Vercel, consider alternatives like Server-Sent Events (SSE)
+// or a dedicated real-time service (e.g., Pusher, Ably).
+// The broadcastPayment function is kept for conceptual completeness but won't
+// actively broadcast over WebSockets in a Vercel serverless deployment.
 function broadcastPayment(payment: any) {
-  broadcast({ type: "new_payment", payment: payment });
+  console.log(
+    "Payment broadcast attempted (WebSockets not active in Vercel serverless):",
+    payment
+  );
+  // In a real serverless setup, you'd integrate with a real-time service here.
 }
 
-wss.on("connection", ws => {
-  console.log("Client connected via WebSocket");
-  ws.send(
-    JSON.stringify({
-      type: "initial_state",
-      grid: currentGrid,
-      code: currentCode
-    })
-  );
-
-  ws.on("message", message => {
-    console.log(`Received message from client: ${message}`);
-  });
-
-  ws.on("close", () => {
-    console.log("Client disconnected from WebSocket");
-  });
-
-  ws.on("error", error => {
-    console.error("WebSocket error:", error);
-  });
-});
-
-// Update interval to 2 seconds as per PDF requirement
-setInterval(() => {
-  currentGrid = generateGrid();
-  // Use the current time so computeCode can derive grid positions from seconds
-  currentCode = computeCode(currentGrid, new Date());
-  broadcast({ type: "update", grid: currentGrid, code: currentCode });
-  console.log("Grid and Code updated and broadcasted.");
-}, 2000); // Changed to 2000 milliseconds (2 seconds)
+// The setInterval for grid/code updates is also removed as serverless functions
+// don't run continuously. The grid and code will be generated on each request.
+// If you need periodic updates, you'd use Vercel Cron Jobs to trigger an endpoint.
 
 app.get("/", (req, res) => {
   res.send("Hello from TypeScript Express Server!");
@@ -73,6 +46,24 @@ app.get("/", (req, res) => {
 
 app.use("/api/grid", gridRouter);
 app.use("/api/code", codeRouter);
-
 app.use("/api/payments", paymentsRouter(broadcastPayment));
+
+// Export the Express app for Vercel
+// Vercel will create a serverless function from this exported app.
 export default app;
+
+// For local development, you can still run the server directly:
+if (process.env.NODE_ENV !== "production") {
+  const port = process.env.PORT || 3000;
+  const server = http.createServer(app);
+  server.listen(port, () => {
+    console.log(
+      `Local Development Server is running on http://localhost:${port}`
+    );
+    console.log(`Grid API available at http://localhost:${port}/api/grid`);
+    console.log(`Code API available at http://localhost:${port}/api/code`);
+    console.log(
+      `Payments API available at http://localhost:${port}/api/payments`
+    );
+  });
+}
