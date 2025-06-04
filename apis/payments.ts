@@ -50,11 +50,18 @@ export default (broadcastPayment: (payment: Payment) => void) => {
 
     try {
       await pushPayment(newPayment);
+      try {
+        broadcastPayment(newPayment);
+      } catch (broadcastErr) {
+        console.error("Failed to broadcast payment", broadcastErr);
+      }
       res.status(201).json(newPayment);
-      broadcastPayment(newPayment);
     } catch (err) {
       console.error("Failed to store payment", err);
-      res.status(500).json({ error: "Failed to store payment" });
+      res.status(500).json({
+        error: "Failed to store payment",
+        details: err instanceof Error ? err.message : String(err)
+      });
     }
   });
 
