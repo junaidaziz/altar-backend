@@ -1,5 +1,6 @@
 import { VercelRequest, VercelResponse } from '@vercel/node';
 import { Payment } from '../apis/payments';
+import { pushPayment } from '../apis/firebase';
 
 const payments: Payment[] = [];
 
@@ -24,6 +25,7 @@ export default function handler(req: VercelRequest, res: VercelResponse) {
       timestamp: new Date(),
     };
     payments.push(newPayment);
+    pushPayment(newPayment).catch(err => console.error('Firebase payment failed', err));
     res.status(201).json(newPayment);
     return;
   }

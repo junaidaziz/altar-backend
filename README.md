@@ -4,34 +4,21 @@ This backend service provides real-time and RESTful APIs for the Altar.io Full-S
 
 ## ⚡ Features
 
-- Real-time grid and code updates via WebSocket.
+- Real-time grid and code updates via Firebase.
 - RESTful API for grid, code, and payment operations.
 - Supports grid biasing for testing.
 - Simple, stateless backend for easy integration.
 - Example requests included for quick start.
 
-## 📡 WebSocket Connection
+## 📡 Firebase Real-Time Updates
 
-- **Endpoint:** Connect to `ws://<your-server-host>:<port>` (e.g., `ws://localhost:3000`)
-- **Events:**
-  - On connection, you receive:
-    ```json
-    {
-      "type": "initial_state",
-      "grid": [ ... ],
-      "code": "42"
-    }
-    ```
-  - Every 2 seconds, a broadcast message is sent to **all clients**:
-    ```json
-    {
-      "type": "update",
-      "grid": [ ... ],
-      "code": "57"
-    }
-    ```
-- **Notes:**  
-  The grid and code auto-update every 2 seconds. Use the broadcast data to update your frontend in real time.
+Listen to the `updates/current` document in Firestore to receive the latest grid and code. Payment events are stored in the `payments` collection.
+
+Example Firestore structure:
+```json
+updates/current: { grid: [...], code: "42", timestamp: "..." }
+payments/{id}: { name, amount, code, grid, timestamp }
+```
 
 ---
 
@@ -39,7 +26,7 @@ This backend service provides real-time and RESTful APIs for the Altar.io Full-S
 
 - The backend generates a **10x10 grid** of random lowercase letters (`a-z`).
 - If the client provides a **bias** character via query parameter (`?bias=z`), 20% of grid cells will use that character, randomly distributed.
-- The grid is refreshed automatically every 2 seconds and sent via WebSocket.
+- The latest grid and code are pushed to Firebase whenever generated.
 
 ---
 

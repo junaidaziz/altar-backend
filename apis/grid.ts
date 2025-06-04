@@ -1,4 +1,6 @@
 import express, { Request, Response } from "express";
+import { computeCode } from "./code";
+import { pushGridUpdate } from "./firebase";
 
 const gridRouter = express.Router();
 
@@ -49,6 +51,8 @@ gridRouter.get("/", (req: Request, res: Response) => {
     setBiasChar(bias);
   }
   const grid = generateGrid();
+  const code = computeCode(grid, new Date());
+  pushGridUpdate(grid, code).catch(err => console.error("Firebase update failed", err));
   res.json({ grid });
 });
 
