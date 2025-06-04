@@ -28,8 +28,3 @@ jobs:
       - name: 🛠️ Compile backend
         run: npm run build
 
-      - name: 📤 Upload backend build artifact
-        uses: actions/upload-artifact@v3
-        with:
-          name: backend-dist
-          path: dist/
