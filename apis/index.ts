@@ -8,7 +8,7 @@ import codeRouter from "./code";
 import paymentsRouter from "./payments";
 import { generateGrid } from "./grid";
 import { computeCode } from "./code";
-import { pushPayment, pushGridUpdate } from "./firebase";
+import { pushPayment, pushGridUpdate, fetchCurrentGrid } from "./firebase";
 
 const app = express();
 
@@ -19,12 +19,25 @@ app.use(express.json());
 let currentGrid: string[][] = [];
 let currentCode: string = "00";
 
-// Initialize grid and code on startup
-currentGrid = generateGrid();
-currentCode = computeCode(currentGrid, new Date());
-pushGridUpdate(currentGrid, currentCode).catch(err =>
-  console.error("Firebase initial grid failed", err)
-);
+// Initialize grid and code on startup using Firebase persistence if available
+(async () => {
+  try {
+    const stored = await fetchCurrentGrid();
+    if (stored) {
+      currentGrid = stored.grid;
+      currentCode = stored.code;
+    } else {
+      currentGrid = generateGrid();
+      currentCode = computeCode(currentGrid, new Date());
+      await pushGridUpdate(currentGrid, currentCode);
+    }
+  } catch (err) {
+    console.error("Firebase initial grid failed", err);
+    // fallback generation
+    currentGrid = generateGrid();
+    currentCode = computeCode(currentGrid, new Date());
+  }
+})();
 
 // Note: WebSockets are not directly supported in Vercel's serverless environment.
 // For real-time updates on Vercel, consider alternatives like Server-Sent Events (SSE)

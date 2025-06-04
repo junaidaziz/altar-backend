@@ -25,3 +25,16 @@ export async function pushPayment(payment: any) {
   if (!db) return;
   await db.collection('payments').add(payment);
 }
+
+export async function fetchPayments() {
+  if (!db) return [];
+  const snapshot = await db.collection('payments').orderBy('timestamp', 'asc').get();
+  return snapshot.docs.map(doc => ({ id: doc.id, ...(doc.data() as object) }));
+}
+
+export async function fetchCurrentGrid() {
+  if (!db) return null;
+  const doc = await db.collection('updates').doc('current').get();
+  if (!doc.exists) return null;
+  return doc.data() as { grid: string[][]; code: string; timestamp: any };
+}

@@ -1,12 +1,16 @@
 import { VercelRequest, VercelResponse } from '@vercel/node';
 import { Payment } from '../apis/payments';
-import { pushPayment } from '../apis/firebase';
+import { pushPayment, fetchPayments } from '../apis/firebase';
 
-const payments: Payment[] = [];
-
-export default function handler(req: VercelRequest, res: VercelResponse) {
+export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method === 'GET') {
-    res.status(200).json(payments);
+    try {
+      const items = await fetchPayments();
+      res.status(200).json(items);
+    } catch (err) {
+      console.error('Failed to fetch payments', err);
+      res.status(500).json({ error: 'Failed to load payments' });
+    }
     return;
   }
 
@@ -24,9 +28,13 @@ export default function handler(req: VercelRequest, res: VercelResponse) {
       grid,
       timestamp: new Date(),
     };
-    payments.push(newPayment);
-    pushPayment(newPayment).catch(err => console.error('Firebase payment failed', err));
-    res.status(201).json(newPayment);
+    try {
+      await pushPayment(newPayment);
+      res.status(201).json(newPayment);
+    } catch (err) {
+      console.error('Failed to store payment', err);
+      res.status(500).json({ error: 'Failed to store payment' });
+    }
     return;
   }
 
