@@ -2,11 +2,21 @@ import express, { Request, Response } from "express";
 
 const gridRouter = express.Router();
 
+let persistedBiasChar: string | null = null;
+
+export function setBiasChar(biasChar: string | null) {
+  persistedBiasChar = biasChar;
+}
+
+export function getBiasChar(): string | null {
+  return persistedBiasChar;
+}
+
 /**
  * Generates a 10x10 grid of random lowercase alphabet characters.
  * Optionally replaces 20% of the cells with a bias character.
  */
-export function generateGrid(biasChar: string | null = null): string[][] {
+export function generateGrid(biasChar: string | null = persistedBiasChar): string[][] {
   const grid: string[][] = [];
   const alphabet = "abcdefghijklmnopqrstuvwxyz";
   const totalCells = 100;
@@ -35,7 +45,10 @@ export function generateGrid(biasChar: string | null = null): string[][] {
 
 gridRouter.get("/", (req: Request, res: Response) => {
   const bias = typeof req.query.bias === "string" ? req.query.bias : null;
-  const grid = generateGrid(bias);
+  if (bias !== null) {
+    setBiasChar(bias);
+  }
+  const grid = generateGrid();
   res.json({ grid });
 });
 

@@ -61,7 +61,7 @@ wss.on("connection", ws => {
 // Update interval to 2 seconds as per PDF requirement
 setInterval(() => {
   currentGrid = generateGrid();
-  // Pass the current Date object to computeCode to use system clock seconds
+  // Use the current time so computeCode can derive grid positions from seconds
   currentCode = computeCode(currentGrid, new Date());
   broadcast({ type: "update", grid: currentGrid, code: currentCode });
   console.log("Grid and Code updated and broadcasted.");

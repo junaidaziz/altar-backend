@@ -5,8 +5,12 @@ import express, { Request, Response } from "express";
 const codeRouter = express.Router();
 
 export function computeCode(grid: string[][], currentTime: Date): string {
-  const char1 = grid[3][6];
-  const char2 = grid[6][3];
+  const seconds = currentTime.getSeconds();
+  const tens = Math.floor(seconds / 10);
+  const units = seconds % 10;
+
+  const char1 = grid[tens][units];
+  const char2 = grid[units][tens];
 
   const countChar = (char: string) =>
     grid.flat().filter(c => c === char).length;
@@ -18,17 +22,7 @@ export function computeCode(grid: string[][], currentTime: Date): string {
   while (count1 > 9) count1 = Math.floor(count1 / 2);
   while (count2 > 9) count2 = Math.floor(count2 / 2);
 
-  const seconds = currentTime.getSeconds();
-
-  // Integrate system clock seconds into the code calculation
-  // This ensures the clock influences both digits
-  const secondsTensDigit = Math.floor(seconds / 10);
-  const secondsUnitsDigit = seconds % 10;
-
-  const finalDigit1 = (count1 + secondsTensDigit) % 10;
-  const finalDigit2 = (count2 + secondsUnitsDigit) % 10;
-
-  return `${finalDigit1}${finalDigit2}`;
+  return `${count1}${count2}`;
 }
 
 codeRouter.post("/", (req: Request, res: Response) => {
