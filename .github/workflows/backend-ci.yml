@@ -4,11 +4,7 @@ name: Backend CI (Node.js + TypeScript)
 
 on:
   push:
-    paths:
-      - 'backend/**'
   pull_request:
-    paths:
-      - 'backend/**'
 
 jobs:
   build:
@@ -24,20 +20,16 @@ jobs:
           node-version: 20
 
       - name: 📦 Install dependencies
-        working-directory: backend
         run: npm install
 
-      # Optional: Add a testing step if you have unit/integration tests
-      # - name: 🧪 Run Tests
-      #   working-directory: backend
-      #   run: npm test
+      - name: 🧪 Run Tests
+        run: npm test
 
       - name: 🛠️ Compile backend
-        working-directory: backend
         run: npm run build
 
       - name: 📤 Upload backend build artifact
         uses: actions/upload-artifact@v3
         with:
           name: backend-dist
-          path: backend/dist/
+          path: dist/
