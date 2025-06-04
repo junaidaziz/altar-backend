@@ -73,3 +73,13 @@ Request body:
     ...
   ]
 }
+
+## 🛠 Deploying on Vercel
+
+This repository now includes a `vercel.json` configuration and serverless functions in the `api/` directory. After installing the [Vercel CLI](https://vercel.com/docs/cli), run:
+
+```bash
+vercel --prod
+```
+
+This will build the TypeScript functions and deploy them to Vercel.
