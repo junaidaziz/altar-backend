@@ -83,3 +83,5 @@ vercel --prod
 ```
 
 This will build the TypeScript functions and deploy them to Vercel.
+
+GitHub Actions workflows have been removed. Deploy using `vercel --prod` when ready.
