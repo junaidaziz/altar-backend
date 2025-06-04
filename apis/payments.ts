@@ -12,7 +12,7 @@ export interface Payment {
 }
 
 // This function will now return a configured router, accepting only the broadcast function
-export default (broadcastPayment: (payment: Payment) => void) => {
+export default (broadcastAll: () => void) => {
   const paymentsRouter = Router();
 
   // GET route to retrieve all payments
@@ -51,7 +51,7 @@ export default (broadcastPayment: (payment: Payment) => void) => {
     try {
       await pushPayment(newPayment);
       try {
-        broadcastPayment(newPayment);
+        broadcastAll();
       } catch (broadcastErr) {
         console.error("Failed to broadcast payment", broadcastErr);
       }

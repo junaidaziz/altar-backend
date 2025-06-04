@@ -8,37 +8,28 @@ import codeRouter from "./code";
 import paymentsRouter from "./payments";
 import { generateGrid } from "./grid";
 import { computeCode } from "./code";
-import { pushGridUpdate, fetchCurrentGrid } from "./firebase";
+import { pushGridUpdate, fetchCurrentGrid, fetchPayments } from "./firebase";
 
 const app = express();
 
 app.use(cors());
 app.use(express.json());
 
-// In-memory state (will reset with each serverless function invocation)
-let currentGrid: string[][] = [];
-let currentCode: string = "00";
-
-// SSE clients for real-time payment updates
+// SSE clients for real-time updates
 const paymentClients: express.Response[] = [];
+const gridClients: express.Response[] = [];
 
-// Initialize grid and code on startup using Firebase persistence if available
+// Ensure a grid exists on startup
 (async () => {
   try {
     const stored = await fetchCurrentGrid();
-    if (stored) {
-      currentGrid = stored.grid;
-      currentCode = stored.code;
-    } else {
-      currentGrid = generateGrid();
-      currentCode = computeCode(currentGrid, new Date());
-      await pushGridUpdate(currentGrid, currentCode);
+    if (!stored) {
+      const grid = generateGrid();
+      const code = computeCode(grid, new Date());
+      await pushGridUpdate(grid, code);
     }
   } catch (err) {
     console.error("Firebase initial grid failed", err);
-    // fallback generation
-    currentGrid = generateGrid();
-    currentCode = computeCode(currentGrid, new Date());
   }
 })();
 
@@ -61,14 +52,52 @@ app.get("/api/payments/stream", (req, res) => {
   });
 });
 
-function broadcastPayment(payment: any) {
-  const data = `data: ${JSON.stringify(payment)}\n\n`;
-  paymentClients.forEach(client => client.write(data));
+app.get("/api/grid/stream", (req, res) => {
+  res.set({
+    "Content-Type": "text/event-stream",
+    "Cache-Control": "no-cache",
+    Connection: "keep-alive"
+  });
+  res.flushHeaders();
+
+  gridClients.push(res);
+
+  req.on("close", () => {
+    const idx = gridClients.indexOf(res);
+    if (idx !== -1) {
+      gridClients.splice(idx, 1);
+    }
+  });
+});
+
+async function broadcastPayments() {
+  try {
+    const items = await fetchPayments();
+    const data = `data: ${JSON.stringify(items)}\n\n`;
+    paymentClients.forEach(client => client.write(data));
+  } catch (err) {
+    console.error("Failed to broadcast payments", err);
+  }
 }
 
-// The setInterval for grid/code updates is also removed as serverless functions
-// don't run continuously. The grid and code will be generated on each request.
-// If you need periodic updates, you'd use Vercel Cron Jobs to trigger an endpoint.
+async function broadcastGrid() {
+  try {
+    const stored = await fetchCurrentGrid();
+    if (stored) {
+      const data = `data: ${JSON.stringify(stored)}\n\n`;
+      gridClients.forEach(client => client.write(data));
+    }
+  } catch (err) {
+    console.error("Failed to broadcast grid", err);
+  }
+}
+
+setInterval(() => {
+  broadcastPayments();
+  broadcastGrid();
+}, 2000);
+
+// Periodically broadcast current state to connected clients
 
 app.get("/", (req, res) => {
   res.send("Hello from TypeScript Express Server!");
@@ -76,7 +105,7 @@ app.get("/", (req, res) => {
 
 app.use("/api/grid", gridRouter);
 app.use("/api/code", codeRouter);
-app.use("/api/payments", paymentsRouter(broadcastPayment));
+app.use("/api/payments", paymentsRouter(broadcastPayments));
 
 // Export the Express app for Vercel
 // Vercel will create a serverless function from this exported app.

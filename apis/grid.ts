@@ -1,6 +1,6 @@
 import express, { Request, Response } from "express";
 import { computeCode } from "./code";
-import { pushGridUpdate } from "./firebase";
+import { pushGridUpdate, fetchCurrentGrid } from "./firebase";
 
 const gridRouter = express.Router();
 
@@ -45,14 +45,30 @@ export function generateGrid(biasChar: string | null = persistedBiasChar): strin
   return grid;
 }
 
-gridRouter.get("/", (req: Request, res: Response) => {
+gridRouter.get("/", async (req: Request, res: Response) => {
   const bias = typeof req.query.bias === "string" ? req.query.bias : null;
   if (bias !== null) {
     setBiasChar(bias);
   }
-  const grid = generateGrid();
-  const code = computeCode(grid, new Date());
-  pushGridUpdate(grid, code).catch(err => console.error("Firebase update failed", err));
+
+  let grid: string[][] | null = null;
+  try {
+    const stored = await fetchCurrentGrid();
+    if (stored) {
+      grid = stored.grid;
+    }
+  } catch (err) {
+    console.error("Failed to load grid from Firebase", err);
+  }
+
+  if (!grid) {
+    grid = generateGrid();
+    const code = computeCode(grid, new Date());
+    pushGridUpdate(grid, code).catch(err =>
+      console.error("Firebase update failed", err)
+    );
+  }
+
   res.json({ grid });
 });
 
