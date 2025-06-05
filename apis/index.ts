@@ -1,39 +1,23 @@
 import "dotenv/config";
 import express from "express";
-import http from "http"; // Keep http for server creation, but not for WSS
+import http from "http";
 import cors from "cors";
 
-import gridRouter from "./grid";
+import gridRouter, { generateGrid } from "./grid";
 import codeRouter from "./code";
 import paymentsRouter from "./payments";
-import { generateGrid } from "./grid";
 import { computeCode } from "./code";
-import { pushGridUpdate, fetchCurrentGrid, fetchPayments } from "./firebase";
+import { pushGridUpdate, fetchPayments } from "./firebase";
 
 const app = express();
 
 app.use(cors());
 app.use(express.json());
 
-// SSE clients for real-time updates
 const paymentClients: express.Response[] = [];
 const gridClients: express.Response[] = [];
 
-// Ensure a grid exists on startup
-(async () => {
-  try {
-    const stored = await fetchCurrentGrid();
-    if (!stored) {
-      const grid = generateGrid();
-      const code = computeCode(grid, new Date());
-      await pushGridUpdate(grid, code);
-    }
-  } catch (err) {
-    console.error("Firebase initial grid failed", err);
-  }
-})();
-
-// Server-Sent Events endpoint for real-time payment updates
+// SSE endpoint for payment updates
 app.get("/api/payments/stream", (req, res) => {
   res.set({
     "Content-Type": "text/event-stream",
@@ -43,15 +27,13 @@ app.get("/api/payments/stream", (req, res) => {
   res.flushHeaders();
 
   paymentClients.push(res);
-
   req.on("close", () => {
     const idx = paymentClients.indexOf(res);
-    if (idx !== -1) {
-      paymentClients.splice(idx, 1);
-    }
+    if (idx !== -1) paymentClients.splice(idx, 1);
   });
 });
 
+// SSE endpoint for grid updates
 app.get("/api/grid/stream", (req, res) => {
   res.set({
     "Content-Type": "text/event-stream",
@@ -61,66 +43,66 @@ app.get("/api/grid/stream", (req, res) => {
   res.flushHeaders();
 
   gridClients.push(res);
-
   req.on("close", () => {
     const idx = gridClients.indexOf(res);
-    if (idx !== -1) {
-      gridClients.splice(idx, 1);
-    }
+    if (idx !== -1) gridClients.splice(idx, 1);
   });
 });
 
-async function broadcastPayments() {
+/**
+ * Every 2 seconds:
+ * 1) Generate a brand-new grid (respecting persistedBiasChar).
+ * 2) Compute its code.
+ * 3) Push it into Firestore (so it becomes “current”).
+ * 4) Immediately send that new { grid, code } out to every SSE subscriber.
+ */
+setInterval(async () => {
+  try {
+    const newGrid = generateGrid();
+    const newCode = computeCode(newGrid, new Date());
+    await pushGridUpdate(newGrid, newCode);
+
+    const payload = { type: "update", grid: newGrid, code: newCode };
+    const data = `data: ${JSON.stringify(payload)}\n\n`;
+    gridClients.forEach(client => client.write(data));
+  } catch (err) {
+    console.error("Failed to generate or broadcast new grid:", err);
+  }
+
   try {
     const items = await fetchPayments();
-    const data = `data: ${JSON.stringify(items)}\n\n`;
-    paymentClients.forEach(client => client.write(data));
+    if (items.length) {
+      const last = items[items.length - 1];
+      const paymentPayload = { type: "new_payment", payment: last };
+      const payData = `data: ${JSON.stringify(paymentPayload)}\n\n`;
+      paymentClients.forEach(client => client.write(payData));
+    }
   } catch (err) {
     console.error("Failed to broadcast payments", err);
   }
-}
-
-async function broadcastGrid() {
-  try {
-    const stored = await fetchCurrentGrid();
-    if (stored) {
-      const data = `data: ${JSON.stringify(stored)}\n\n`;
-      gridClients.forEach(client => client.write(data));
-    }
-  } catch (err) {
-    console.error("Failed to broadcast grid", err);
-  }
-}
-
-setInterval(() => {
-  broadcastPayments();
-  broadcastGrid();
 }, 2000);
 
-// Periodically broadcast current state to connected clients
-
-app.get("/", (req, res) => {
+app.get("/", (_req, res) => {
   res.send("Hello from TypeScript Express Server!");
 });
 
 app.use("/api/grid", gridRouter);
 app.use("/api/code", codeRouter);
-app.use("/api/payments", paymentsRouter(broadcastPayments));
+app.use(
+  "/api/payments",
+  paymentsRouter(() => {
+    /* no-op here since our interval already pushes new payments */
+  })
+);
 
-// Export the Express app for Vercel
-// Vercel will create a serverless function from this exported app.
 export default app;
 
-// For local development, you can still run the server directly:
 if (process.env.NODE_ENV !== "production") {
   const port = process.env.PORT || 3000;
   const server = http.createServer(app);
   server.listen(port, () => {
-    console.log(
-      `Local Development Server is running on http://localhost:${port}`
-    );
+    console.log(`Server running on http://localhost:${port}`);
     console.log(`Grid API available at http://localhost:${port}/api/grid`);
-    console.log(`Code API available at http://localhost:${port}/api/code`);
     console.log(
       `Payments API available at http://localhost:${port}/api/payments`
     );

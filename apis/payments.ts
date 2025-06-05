@@ -1,21 +1,19 @@
 import { Router, Request, Response } from "express";
 import { fetchPayments, pushPayment } from "./firebase";
 
-// Define an interface for a Payment object
 export interface Payment {
   id: string;
   name: string;
   amount: number;
   code: string;
-  grid: string[][];
+  grid: { cells: string[] }[];
+  gridSnippet?: string;
   timestamp: Date;
 }
 
-// This function will now return a configured router, accepting only the broadcast function
 export default (broadcastAll: () => void) => {
   const paymentsRouter = Router();
 
-  // GET route to retrieve all payments
   paymentsRouter.get("/", async (_req: Request, res: Response) => {
     try {
       const items = await fetchPayments();
@@ -26,25 +24,47 @@ export default (broadcastAll: () => void) => {
     }
   });
 
-  // POST route to add a new payment
   paymentsRouter.post("/", async (req: Request, res: Response) => {
-    // Destructure required fields from the request body
-    const { name, amount, code, grid } = req.body;
+    const { name, amount, code, grid, gridSnippet } = req.body;
 
-    // Basic validation for required fields
-    if (!name || typeof amount !== "number" || !code || !Array.isArray(grid)) {
+    if (
+      !name ||
+      typeof name !== "string" ||
+      typeof amount !== "number" ||
+      !code ||
+      typeof code !== "string" ||
+      !Array.isArray(grid)
+    ) {
       return res
         .status(400)
         .json({ error: "Name, amount, code, and grid are required." });
     }
 
-    // Create a new payment object with a unique ID and timestamp
+    const isValidGrid = grid.every(
+      (row: any) =>
+        typeof row === "object" &&
+        Array.isArray((row as any).cells) &&
+        (row as any).cells.every((c: any) => typeof c === "string")
+    );
+    if (!isValidGrid) {
+      return res
+        .status(400)
+        .json({ error: "Grid must be an array of { cells: string[] }." });
+    }
+
+    if (gridSnippet !== undefined && typeof gridSnippet !== "string") {
+      return res
+        .status(400)
+        .json({ error: "gridSnippet, if provided, must be a string." });
+    }
+
     const newPayment: Payment = {
-      id: Date.now().toString(), // Simple unique ID generation (for demo purposes)
+      id: Date.now().toString(),
       name,
       amount,
       code,
-      grid,
+      grid: grid as { cells: string[] }[],
+      gridSnippet: gridSnippet as string | undefined,
       timestamp: new Date()
     };
 
@@ -65,5 +85,5 @@ export default (broadcastAll: () => void) => {
     }
   });
 
-  return paymentsRouter; // Export the router for use in index.ts
+  return paymentsRouter;
 };

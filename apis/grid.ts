@@ -1,6 +1,6 @@
 import express, { Request, Response } from "express";
 import { computeCode } from "./code";
-import { pushGridUpdate, fetchCurrentGrid } from "./firebase";
+import { pushGridUpdate } from "./firebase";
 
 const gridRouter = express.Router();
 
@@ -18,7 +18,9 @@ export function getBiasChar(): string | null {
  * Generates a 10x10 grid of random lowercase alphabet characters.
  * Optionally replaces 20% of the cells with a bias character.
  */
-export function generateGrid(biasChar: string | null = persistedBiasChar): string[][] {
+export function generateGrid(
+  biasChar: string | null = persistedBiasChar
+): string[][] {
   const grid: string[][] = [];
   const alphabet = "abcdefghijklmnopqrstuvwxyz";
   const totalCells = 100;
@@ -46,30 +48,23 @@ export function generateGrid(biasChar: string | null = persistedBiasChar): strin
 }
 
 gridRouter.get("/", async (req: Request, res: Response) => {
+  // 1) If a bias query parameter is provided, update persistedBiasChar
   const bias = typeof req.query.bias === "string" ? req.query.bias : null;
   if (bias !== null) {
     setBiasChar(bias);
   }
 
-  let grid: string[][] | null = null;
-  try {
-    const stored = await fetchCurrentGrid();
-    if (stored) {
-      grid = stored.grid;
-    }
-  } catch (err) {
-    console.error("Failed to load grid from Firebase", err);
-  }
+  // 2) Always generate a brand-new grid & compute its code
+  const newGrid = generateGrid();
+  const newCode = computeCode(newGrid, new Date());
 
-  if (!grid) {
-    grid = generateGrid();
-    const code = computeCode(grid, new Date());
-    pushGridUpdate(grid, code).catch(err =>
-      console.error("Firebase update failed", err)
-    );
-  }
+  // 3) Push the new grid+code into Firebase so SSE clients see it on next broadcast
+  pushGridUpdate(newGrid, newCode).catch(err =>
+    console.error("Firebase update failed", err)
+  );
 
-  res.json({ grid });
+  // 4) Return the fresh grid and code immediately
+  res.json({ grid: newGrid, code: newCode });
 });
 
 export default gridRouter;
